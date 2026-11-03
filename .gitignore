@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example.*
+!frontend/.env.example
+frontend/.env.local
+secrets/
+backups/
+docker/nginx/ssl/
+backend/.pytest_cache/
+backend/**/__pycache__/
+frontend/node_modules/
+frontend/dist/

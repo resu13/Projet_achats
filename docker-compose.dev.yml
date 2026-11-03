@@ -1,0 +1,69 @@
+# docker-compose.dev.yml — Développement local (sans HTTPS, avec hot-reload)
+# Usage : docker-compose -f docker-compose.dev.yml up
+
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: achats_dev
+      POSTGRES_USER: achats_dev
+      POSTGRES_PASSWORD: devpassword
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    volumes:
+      - ./backend:/app
+      - ./media:/app/media
+    ports:
+      - "8000:8000"
+    env_file: .env.dev
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.base
+      DEBUG: "True"
+    depends_on:
+      - db
+      - redis
+    command: python manage.py runserver 0.0.0.0:8000
+
+  celery:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    volumes:
+      - ./backend:/app
+    env_file: .env.dev
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.base
+    depends_on:
+      - db
+      - redis
+    command: celery -A config worker -l debug --concurrency=1
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+      VITE_USE_MOCKS: "${VITE_USE_MOCKS:-false}"
+
+volumes:
+  postgres_dev_data:
